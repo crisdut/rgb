@@ -34,7 +34,7 @@ mod runtime;
 mod wallet;
 
 pub mod prelude {
-    pub use descriptor::{RgbDescr, SpkDescriptor, Tapret, TerminalPath};
+    pub use descriptor::{DeriveInfo, RgbDescr, SpkDescriptor, Tapret, TerminalPath};
     #[cfg(feature = "electrum")]
     pub use electrum::BlockchainResolver;
     pub use rgbfs::StockFs;
@@ -42,7 +42,7 @@ pub mod prelude {
     pub use rgbwallet::*;
     #[cfg(feature = "cli")]
     pub use runtime::{Runtime, RuntimeError};
-    pub use wallet::{DefaultResolver, Resolver, RgbWallet};
+    pub use wallet::{DefaultResolver, MiningStatus, Resolver, RgbWallet, Utxo};
 
     pub use super::*;
 }
