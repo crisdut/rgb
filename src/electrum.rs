@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::Infallible;
 
-use amplify::RawArray;
+use amplify::{RawArray, Wrapper};
 use bitcoin::hashes::Hash;
 use bitcoin::ScriptBuf;
-use bp::{Tx, TxIn, TxOut, VarIntArray};
+use bp::{LockTime, SeqNo, Tx, TxIn, TxOut, TxVer, VarIntArray, Witness};
 use electrum_client::{ElectrumApi, Error, ListUnspentRes};
 use rgbstd::resolvers::ResolveHeight;
 use rgbstd::validation::{ResolveTx, TxResolverError};
@@ -52,7 +52,7 @@ impl ResolveTx for BlockchainResolver {
                 err => TxResolverError::Other(txid, err.to_string()),
             })?;
         Ok(Tx {
-            version: (tx.version as u8)
+            version: TxVer::from_consensus_i32(tx.version)
                 .try_into()
                 .expect("non-consensus tx version"),
             inputs: VarIntArray::try_from_iter(tx.input.into_iter().map(|txin| TxIn {
@@ -61,7 +61,8 @@ impl ResolveTx for BlockchainResolver {
                     txin.previous_output.vout,
                 ),
                 sig_script: txin.script_sig.to_bytes().into(),
-                sequence: txin.sequence.0.into(),
+                sequence: SeqNo::from_consensus_u32(txin.sequence.to_consensus_u32()),
+                witness: Witness::from_consensus_stack(txin.witness.to_vec()),
             }))
             .expect("consensus-invalid transaction"),
             outputs: VarIntArray::try_from_iter(tx.output.into_iter().map(|txout| TxOut {
@@ -69,7 +70,7 @@ impl ResolveTx for BlockchainResolver {
                 script_pubkey: txout.script_pubkey.to_bytes().into(),
             }))
             .expect("consensus-invalid transaction"),
-            lock_time: tx.lock_time.to_consensus_u32().into(),
+            lock_time: LockTime::from_consensus_u32(tx.lock_time.to_consensus_u32()),
         })
     }
 }

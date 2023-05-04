@@ -1,0 +1,15 @@
+interface: RGB20
+
+globals:
+  Nominal:
+    ticker: DIBA1
+    name: DIBA1
+    details: ~
+    precision: 8
+  ContractText: >
+    DIBA1
+
+assignments:
+  Assets:
+    seal: tapret1st:8a8890d2b26755782bf7072aa984e7dd58931c553d8fce0a588450b2ee4f3b83:1
+    amount: 5
