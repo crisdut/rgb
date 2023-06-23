@@ -358,26 +358,26 @@ impl Command {
                 println!("\nOwned:");
                 for owned in &contract.iface.assignments {
                     println!("  {}:", owned.name);
-                    if let Ok(allocations) = contract.fungible(owned.name.clone()) {
-                        for allocation in allocations {
-                            if let Some(utxo) =
-                                wallet.as_ref().and_then(|w| w.utxo(allocation.owner))
-                            {
-                                println!(
-                                    "    amount={}, utxo={}, witness={}, derivation={}",
-                                    allocation.value,
-                                    allocation.owner,
-                                    allocation.witness,
-                                    utxo.derivation
-                                );
-                            } else {
-                                println!(
-                                    "    amount={}, utxo={}, witness={} # owner unknown",
-                                    allocation.value, allocation.owner, allocation.witness
-                                );
-                            }
-                        }
-                    }
+                    // if let Ok(allocations) = contract.fungible(owned.name.clone()) {
+                    //     for allocation in allocations {
+                    //         if let Some(utxo) =
+                    //             wallet.as_ref().and_then(|w| w.utxo(allocation.owner))
+                    //         {
+                    //             println!(
+                    //                 "    amount={}, utxo={}, witness={}, derivation={}",
+                    //                 allocation.value,
+                    //                 allocation.owner,
+                    //                 allocation.witness,
+                    //                 utxo.derivation
+                    //             );
+                    //         } else {
+                    //             println!(
+                    //                 "    amount={}, utxo={}, witness={} # owner unknown",
+                    //                 allocation.value, allocation.owner, allocation.witness
+                    //             );
+                    //         }
+                    //     }
+                    // }
                     // TODO: Print out other types of state
                 }
             }
