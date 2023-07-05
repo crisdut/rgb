@@ -1,0 +1,19 @@
+interface: RGB20
+
+globals:
+  spec:
+    naming:
+      ticker: DIBA
+      name: DIBA
+      details: ~
+    precision: 2
+  data:
+    terms: >  
+      DIBA
+    media: ~
+  issuedSupply: 5
+  created: 1687969158    
+assignments:
+  assetOwner:
+    seal: tapret1st:5082afd1833ba08d9f2976684a40f256d5c4c5db8df6a2e83b3a80fa63fb71a1:1
+    amount: 5

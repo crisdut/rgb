@@ -358,26 +358,26 @@ impl Command {
                 println!("\nOwned:");
                 for owned in &contract.iface.assignments {
                     println!("  {}:", owned.name);
-                    // if let Ok(allocations) = contract.fungible(owned.name.clone()) {
-                    //     for allocation in allocations {
-                    //         if let Some(utxo) =
-                    //             wallet.as_ref().and_then(|w| w.utxo(allocation.owner))
-                    //         {
-                    //             println!(
-                    //                 "    amount={}, utxo={}, witness={}, derivation={}",
-                    //                 allocation.value,
-                    //                 allocation.owner,
-                    //                 allocation.witness,
-                    //                 utxo.derivation
-                    //             );
-                    //         } else {
-                    //             println!(
-                    //                 "    amount={}, utxo={}, witness={} # owner unknown",
-                    //                 allocation.value, allocation.owner, allocation.witness
-                    //             );
-                    //         }
-                    //     }
-                    // }
+                    if let Ok(allocations) = contract.fungible(owned.name.clone(), &None) {
+                        for allocation in allocations {
+                            if let Some(utxo) =
+                                wallet.as_ref().and_then(|w| w.utxo(allocation.owner))
+                            {
+                                println!(
+                                    "    amount={}, utxo={}, witness={}, derivation={}",
+                                    allocation.value,
+                                    allocation.owner,
+                                    allocation.witness,
+                                    utxo.derivation
+                                );
+                            } else {
+                                println!(
+                                    "    amount={}, utxo={}, witness={} # owner unknown",
+                                    allocation.value, allocation.owner, allocation.witness
+                                );
+                            }
+                        }
+                    }
                     // TODO: Print out other types of state
                 }
             }
@@ -402,8 +402,9 @@ impl Command {
 
                 let file = fs::File::open(contract)?;
 
-                let mut builder = ContractBuilder::with(iface, schema.clone(), iface_impl.clone())?
-                    .set_chain(runtime.chain());
+                let mut builder =
+                    ContractBuilder::with(iface.clone(), schema.clone(), iface_impl.clone())?
+                        .set_chain(runtime.chain());
 
                 let code = serde_yaml::from_reader::<_, serde_yaml::Value>(file)?;
 
@@ -418,6 +419,14 @@ impl Command {
                         let name = name
                             .as_str()
                             .expect("invalid YAML: global name must be a string");
+                        let name = iface
+                            .genesis
+                            .global
+                            .iter()
+                            .find(|(n, _)| n.as_str() == name)
+                            .and_then(|(_, spec)| spec.name.as_ref())
+                            .map(FieldName::as_str)
+                            .unwrap_or(name);
                         let state_type = iface_impl
                             .global_state
                             .iter()
@@ -454,6 +463,14 @@ impl Command {
                         let name = name
                             .as_str()
                             .expect("invalid YAML: assignments name must be a string");
+                        let name = iface
+                            .genesis
+                            .assignments
+                            .iter()
+                            .find(|(n, _)| n.as_str() == name)
+                            .and_then(|(_, spec)| spec.name.as_ref())
+                            .map(FieldName::as_str)
+                            .unwrap_or(name);
                         let state_type = iface_impl
                             .assignments
                             .iter()
