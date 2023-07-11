@@ -999,7 +999,7 @@ dependencies = [
 [[package]]
 name = "rgb-core"
 version = "0.10.4"
-source = "git+https://github.com/crisdut/rgb-core#54e7cbb905cab23440a00111f1321dc0acf2f03e"
+source = "git+https://github.com/crisdut/rgb-core#8e09cad6199aeba6963176bc719b43ea201d1c83"
 dependencies = [
  "aluvm",
  "amplify",
@@ -1007,6 +1007,7 @@ dependencies = [
  "bp-core",
  "commit_verify",
  "getrandom",
+ "half",
  "mime",
  "secp256k1-zkp",
  "single_use_seals",
@@ -1027,7 +1028,7 @@ dependencies = [
 [[package]]
 name = "rgb-std"
 version = "0.10.2"
-source = "git+https://github.com/crisdut/rgb-wallet?branch=release/bmc-v0.6#e6c5a951751762bb73502919678496df4791e916"
+source = "git+https://github.com/crisdut/rgb-wallet?branch=release/bmc-v0.6#638b58d81186ad47aeb33802dc515cec6b321f2f"
 dependencies = [
  "amplify",
  "baid58",
@@ -1045,7 +1046,7 @@ dependencies = [
 [[package]]
 name = "rgb-wallet"
 version = "0.10.2"
-source = "git+https://github.com/crisdut/rgb-wallet?branch=release/bmc-v0.6#e6c5a951751762bb73502919678496df4791e916"
+source = "git+https://github.com/crisdut/rgb-wallet?branch=release/bmc-v0.6#638b58d81186ad47aeb33802dc515cec6b321f2f"
 dependencies = [
  "amplify",
  "baid58",
@@ -1300,9 +1301,9 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "strict_encoding"
-version = "2.4.0"
+version = "2.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca43fabd13842577ce6d152047796794e209625ff89d3f2434d99b742eea1c98"
+checksum = "127000718020d3da8bb1a0b64854e49107607463cb0fd6df9960e0642ef53095"
 dependencies = [
  "amplify",
  "half",
@@ -1325,9 +1326,9 @@ dependencies = [
 
 [[package]]
 name = "strict_types"
-version = "1.4.0"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4b1669bdf556c9a00a6a9aa9bf76d3ebec83aa4aa3e178bdfd2073157564579"
+checksum = "0e3b226d85e2961fee06594323a1a98bc79987aa44b9e977d2f834e52eb0361a"
 dependencies = [
  "amplify",
  "baid58",
