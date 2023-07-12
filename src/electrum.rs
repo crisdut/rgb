@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::convert::Infallible;
 
 use amplify::{RawArray, Wrapper};
 use bitcoin::hashes::Hash;
-use bitcoin::ScriptBuf;
+use bitcoin::{ScriptBuf, Script};
 use bp::{LockTime, SeqNo, Tx, TxIn, TxOut, TxVer, VarIntArray, Witness};
 use electrum_client::{ElectrumApi, Error, ListUnspentRes};
+use rgbstd::contract::WitnessOrd;
 use rgbstd::resolvers::ResolveHeight;
 use rgbstd::validation::{ResolveTx, TxResolverError};
 
@@ -76,10 +76,44 @@ impl ResolveTx for BlockchainResolver {
 }
 
 impl ResolveHeight for BlockchainResolver {
-    type Error = Infallible;
-    fn resolve_height(&mut self, _txid: Txid) -> Result<u32, Self::Error> {
-        // TODO: find a way how to resolve transaction height
-        Ok(0)
+    type Error = TxResolverError;
+    fn resolve_height(&mut self, txid: Txid) -> Result<WitnessOrd, Self::Error> {
+        let tx = match self
+            .0
+            .transaction_get(&bitcoin::Txid::from_byte_array(txid.to_raw_array()))
+        {
+            Ok(tx) => tx,
+            Err(Error::Message(_) | Error::Protocol(_)) => return Ok(WitnessOrd::OffChain),
+            Err(err) => return Err(TxResolverError::Other(txid, err.to_string())),
+        };
+
+        let scripts: Vec<&Script> = tx
+            .output
+            .iter()
+            .map(|out| out.script_pubkey.as_script())
+            .collect();
+
+        let mut hists = vec![];
+        self.0
+            .batch_script_get_history(scripts)
+            .map_err(|err| match err {
+                Error::Message(_) | Error::Protocol(_) => TxResolverError::Unknown(txid),
+                err => TxResolverError::Other(txid, err.to_string()),
+            })?
+            .into_iter()
+            .for_each(|h| hists.extend(h));
+        let transactions: BTreeMap<bitcoin::Txid, u32> = hists
+            .into_iter()
+            .map(|h| (h.tx_hash, if h.height > 0 { h.height as u32 } else { 0 }))
+            .collect();
+
+        let min_height = transactions
+            .into_values()
+            .min()
+            .map(WitnessOrd::from_electrum_height)
+            .unwrap_or(WitnessOrd::OffChain);
+
+        Ok(min_height)
     }
 }
 
