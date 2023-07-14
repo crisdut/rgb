@@ -110,7 +110,7 @@ impl ResolveHeight for BlockchainResolver {
         let min_height = transactions
             .into_values()
             .min()
-            .map(WitnessOrd::from_electrum_height)
+            .map(WitnessOrd::with_mempool_or_height)
             .unwrap_or(WitnessOrd::OffChain);
 
         Ok(min_height)
