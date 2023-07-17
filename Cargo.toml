@@ -18,7 +18,7 @@ license = "Apache-2.0"
 
 [workspace.dependencies]
 amplify = "4.0.0"
-baid58 = "0.3.1"
+baid58 = "0.3.2"
 strict_encoding = "2.5.0"
 strict_types = "1.5.0"
 rgb-std = { version = "0.10.3", features = ["fs"] }
@@ -56,19 +56,19 @@ rgb-std = { workspace = true }
 rgb-wallet = { workspace = true }
 rgb-persist-fs = { version = "0.10.0", path = "fs" }
 bitcoin = { version = "0.30.0", features = ["serde"] }
-electrum-client = { version = "0.15.1", optional = true }
-log = { version = "0.4", features = ["max_level_trace", "release_max_level_debug"], optional = true }
+electrum-client = { version = "0.17.0", optional = true }
+log = { version = "0.4", features = ["max_level_trace", "release_max_level_debug"] }
 env_logger = "0.10.0"
-clap = { version = "4.1.8", features = ["derive", "env"], optional = true }
-shellexpand = { version = "3.0.0", optional = true }
-serde = "1.0.159"
-serde_yaml = "0.9.19"
+clap = { version = "4.3.12", features = ["derive", "env"], optional = true }
+shellexpand = { version = "3.1.0", optional = true }
+serde = "1.0.19"
+serde_yaml = "0.9.23"
 
 [features]
-default = ["electrum", "log"]
-all = ["cli", "log"]
-electrum = ["electrum-client", "log"]
-cli = ["clap", "shellexpand", "log", "electrum"]
+all = []
+default = ["cli", "electrum"]
+electrum = ["electrum-client"]
+cli = ["clap", "shellexpand", "electrum"]
 
 [package.metadata.docs.rs]
 features = [ "all" ]

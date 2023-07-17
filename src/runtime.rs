@@ -36,7 +36,8 @@ use rgbstd::{validation, Chain};
 use strict_types::encoding::{DeserializeError, Ident, SerializeError};
 
 use crate::descriptor::RgbDescr;
-use crate::wallet::BlockchainResolver;
+#[cfg(feature = "electrum")]
+use crate::BlockchainResolver;
 use crate::{RgbWallet, Tapret};
 
 #[derive(Debug, Display, Error, From)]

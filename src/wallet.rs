@@ -21,15 +21,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use amplify::RawArray;
-use bitcoin::hashes::Hash;
 use bitcoin::ScriptBuf;
-use bp::{Outpoint, Txid};
+use bp::{Chain, Outpoint};
 
 use crate::descriptor::DeriveInfo;
 use crate::{RgbDescr, SpkDescriptor};
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Display)]
+#[derive(Serialize, Deserialize)]
 pub enum MiningStatus {
     #[display("~")]
     Mempool,
@@ -38,6 +37,7 @@ pub enum MiningStatus {
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Utxo {
     pub outpoint: Outpoint,
     pub status: MiningStatus,
@@ -53,6 +53,7 @@ pub trait Resolver {
 }
 
 #[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct RgbWallet {
     pub descr: RgbDescr,
     pub utxos: BTreeSet<Utxo>,
@@ -90,150 +91,14 @@ pub trait DefaultResolver {
     fn default_resolver(&self) -> String;
 }
 
-#[cfg(feature = "electrum")]
-#[derive(Wrapper, WrapperMut, From)]
-#[wrapper(Deref)]
-#[wrapper_mut(DerefMut)]
-pub struct BlockchainResolver(electrum_client::Client);
-
-impl BlockchainResolver {
-    #[cfg(feature = "electrum")]
-    pub fn with(url: &str) -> Result<Self, electrum_client::Error> {
-        electrum_client::Client::new(url).map(Self)
-    }
-}
-
-#[cfg(feature = "electrum")]
-mod _electrum {
-    use bitcoin::{Script, ScriptBuf};
-    use bp::{Chain, LockTime, SeqNo, Tx, TxIn, TxOut, TxVer, VarIntArray, Witness};
-    use electrum_client::{ElectrumApi, Error, ListUnspentRes};
-    use rgbstd::contract::WitnessOrd;
-    use rgbstd::resolvers::ResolveHeight;
-    use rgbstd::validation::{ResolveTx, TxResolverError};
-
-    use super::*;
-
-    impl DefaultResolver for Chain {
-        fn default_resolver(&self) -> String {
-            match self {
-                Chain::Bitcoin => s!("blockstream.info:110"),
-                Chain::Testnet3 => s!("blockstream.info:143"),
-                Chain::Regtest => s!("localhost:50001"),
-                chain => {
-                    panic!("no default server is known for {chain}, please provide a custom URL")
-                }
-            }
-        }
-    }
-
-    impl Resolver for BlockchainResolver {
-        fn resolve_utxo<'s>(
-            &mut self,
-            scripts: BTreeMap<DeriveInfo, ScriptBuf>,
-        ) -> Result<BTreeSet<Utxo>, String> {
-            Ok(self
-                .batch_script_list_unspent(scripts.values().map(ScriptBuf::as_script))
-                .map_err(|err| err.to_string())?
-                .into_iter()
-                .zip(scripts.into_keys())
-                .flat_map(|(list, derivation)| {
-                    list.into_iter()
-                        .map(move |res| Utxo::with(derivation.clone(), res))
-                })
-                .collect())
-        }
-    }
-
-    impl ResolveTx for BlockchainResolver {
-        fn resolve_tx(&self, txid: Txid) -> Result<Tx, TxResolverError> {
-            let tx = self
-                .0
-                .transaction_get(&bitcoin::Txid::from_byte_array(txid.to_raw_array()))
-                .map_err(|err| match err {
-                    Error::Message(_) | Error::Protocol(_) => TxResolverError::Unknown(txid),
-                    err => TxResolverError::Other(txid, err.to_string()),
-                })?;
-            Ok(Tx {
-                version: TxVer::from_consensus_i32(tx.version)
-                    .try_into()
-                    .expect("non-consensus tx version"),
-                inputs: VarIntArray::try_from_iter(tx.input.into_iter().map(|txin| TxIn {
-                    prev_output: Outpoint::new(
-                        txin.previous_output.txid.to_byte_array().into(),
-                        txin.previous_output.vout,
-                    ),
-                    sig_script: txin.script_sig.to_bytes().into(),
-                    sequence: SeqNo::from_consensus_u32(txin.sequence.to_consensus_u32()),
-                    witness: Witness::from_consensus_stack(txin.witness.to_vec()),
-                }))
-                .expect("consensus-invalid transaction"),
-                outputs: VarIntArray::try_from_iter(tx.output.into_iter().map(|txout| TxOut {
-                    value: txout.value.into(),
-                    script_pubkey: txout.script_pubkey.to_bytes().into(),
-                }))
-                .expect("consensus-invalid transaction"),
-                lock_time: LockTime::from_consensus_u32(tx.lock_time.to_consensus_u32()),
-            })
-        }
-    }
-
-    impl ResolveHeight for BlockchainResolver {
-        type Error = TxResolverError;
-        fn resolve_height(&mut self, txid: Txid) -> Result<WitnessOrd, Self::Error> {
-            let tx = match self
-                .0
-                .transaction_get(&bitcoin::Txid::from_byte_array(txid.to_raw_array()))
-            {
-                Ok(tx) => tx,
-                Err(Error::Message(_) | Error::Protocol(_)) => return Ok(WitnessOrd::OffChain),
-                Err(err) => return Err(TxResolverError::Other(txid, err.to_string())),
-            };
-
-            let scripts: Vec<&Script> = tx
-                .output
-                .iter()
-                .map(|out| out.script_pubkey.as_script())
-                .collect();
-
-            let mut hists = vec![];
-            self.0
-                .batch_script_get_history(scripts)
-                .map_err(|err| match err {
-                    Error::Message(_) | Error::Protocol(_) => TxResolverError::Unknown(txid),
-                    err => TxResolverError::Other(txid, err.to_string()),
-                })?
-                .into_iter()
-                .for_each(|h| hists.extend(h));
-            let transactions: BTreeMap<bitcoin::Txid, u32> = hists
-                .into_iter()
-                .map(|h| (h.tx_hash, if h.height > 0 { h.height as u32 } else { 0 }))
-                .collect();
-
-            let min_height = transactions
-                .into_values()
-                .min()
-                .map(WitnessOrd::with_mempool_or_height)
-                .unwrap_or(WitnessOrd::OffChain);
-
-            Ok(min_height)
-        }
-    }
-
-    impl Utxo {
-        fn with(derivation: DeriveInfo, res: ListUnspentRes) -> Self {
-            Utxo {
-                status: if res.height == 0 {
-                    MiningStatus::Mempool
-                } else {
-                    MiningStatus::Blockchain(res.height as u32)
-                },
-                outpoint: Outpoint::new(
-                    Txid::from_raw_array(res.tx_hash.to_byte_array()),
-                    res.tx_pos as u32,
-                ),
-                derivation,
-                amount: res.value,
+impl DefaultResolver for Chain {
+    fn default_resolver(&self) -> String {
+        match self {
+            Chain::Bitcoin => s!("blockstream.info:110"),
+            Chain::Testnet3 => s!("blockstream.info:143"),
+            Chain::Regtest => s!("localhost:50001"),
+            chain => {
+                panic!("no default server is known for {chain}, please provide a custom URL")
             }
         }
     }
