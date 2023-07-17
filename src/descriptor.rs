@@ -26,9 +26,10 @@ use std::ops::Range;
 use bitcoin::bip32::{ChildNumber, ExtendedPubKey};
 use bitcoin::secp256k1::SECP256K1;
 use bitcoin::ScriptBuf;
-use bp::dbc::tapret::{TapretCommitment, TapretPathProof, TapretProof};
-use bp::{ScriptPubkey, TapNodeHash};
-use commit_verify::ConvolveCommit;
+use bitcoin::taproot::TaprootBuilder;
+use bp::dbc::tapret::TapretCommitment;
+use bp::TapScript;
+use commit_verify::CommitVerify;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Display)]
 #[display("*/{app}/{index}")]
@@ -139,18 +140,15 @@ impl SpkDescriptor for Tapret {
                 .into_iter()
                 .flatten()
             {
-                let script = ScriptPubkey::p2tr(xonly.into(), None::<TapNodeHash>);
-                let proof = TapretProof {
-                    path_proof: TapretPathProof::root(tweak.nonce),
-                    internal_pk: xonly.into(),
-                };
-                let (spk, _) = script
-                    .convolve_commit(&proof, &tweak.mpc)
-                    .expect("malicious tapret value - an inverse of a key");
-                spks.insert(
-                    DeriveInfo::with(app, index, Some(tweak.clone())),
-                    ScriptBuf::from_bytes(spk.to_inner()),
-                );
+                let script_commitment = ScriptBuf::from_bytes(TapScript::commit(tweak).to_vec());
+                let builder = TaprootBuilder::with_capacity(1)
+                    .add_leaf(0, script_commitment.clone())
+                    .expect("invalid tapleaf");
+
+                let spent_info = builder.finalize(SECP256K1, xonly).expect("complete tree");
+                let merkle_root = spent_info.merkle_root().expect("script tree present");
+                let spk = ScriptBuf::new_v1_p2tr(SECP256K1, xonly, Some(merkle_root));
+                spks.insert(DeriveInfo::with(app, index, Some(tweak.clone())), spk);
             }
         }
         spks
