@@ -72,3 +72,6 @@ cli = ["clap", "shellexpand", "electrum"]
 
 [package.metadata.docs.rs]
 features = [ "all" ]
+
+[patch.crates-io]
+rgb-std = { git = "https://github.com/crisdut/rgb-wallet", branch = "release/bmc-v0.6-rc7" }
