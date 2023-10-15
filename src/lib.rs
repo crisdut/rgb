@@ -21,6 +21,7 @@
 
 #[macro_use]
 extern crate amplify;
+#[cfg(feature = "log")]
 #[macro_use]
 extern crate log;
 #[macro_use]

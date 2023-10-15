@@ -12,21 +12,21 @@ default-members = [
 authors = ["Dr Maxim Orlovsky <orlovsky@lnp-bp.org>"]
 homepage = "https://github.com/RGB-WG"
 repository = "https://github.com/RGB-WG/rgb"
-rust-version = "1.67" # Due to strict encoding library
+rust-version = "1.70" # Because of clap # TODO: Change back to "1.67" once cli will be in a separate crate
 edition = "2021"
 license = "Apache-2.0"
 
 [workspace.dependencies]
-amplify = "4.0.0"
-baid58 = "0.4.1"
-strict_encoding = "2.5.0"
-strict_types = "1.6.0"
-rgb-std = { version = "0.10.4", features = ["fs"] }
-rgb-wallet = { version = "0.10.4", features = ["fs"] }
+amplify = "4.5.0"
+baid58 = "0.4.4"
+strict_encoding = "2.6.1"
+strict_types = "1.6.3"
+rgb-std = { version = "0.10.9", features = ["fs"] }
+rgb-wallet = { version = "0.10.9", features = ["fs"] }
 
 [package]
 name = "rgb-contracts"
-version = "0.10.0-rc.3"
+version = "0.10.1"
 description = " RGB: scalable & confidential smart contracts for Bitcoin & Lightning network"
 keywords = ["bitcoin", "lightning", "rgb", "smart-contracts", "lnp-bp"]
 categories = ["cryptography::cryptocurrencies"]
@@ -51,27 +51,27 @@ amplify = { workspace = true }
 baid58 = { workspace = true }
 strict_types = { workspace = true, features = ["serde"] }
 commit_verify = "0.10.5"
-bp-core = { version = "0.10.6", features = ["serde"] }
+bp-core = { version = "0.10.11", features = ["serde"] }
 rgb-std = { workspace = true }
 rgb-wallet = { workspace = true }
 rgb-persist-fs = { version = "0.10.0", path = "fs" }
-bitcoin = { version = "0.30.0", features = ["serde"] }
+bitcoin = { version = "0.30.1", features = ["serde"] }
 electrum-client = { version = "0.17.0", optional = true }
-log = { version = "0.4", features = ["max_level_trace", "release_max_level_debug"] }
+log = { version = "0.4", features = ["max_level_trace", "release_max_level_debug"], optional = true }
 env_logger = "0.10.0"
-clap = { version = "4.3.12", features = ["derive", "env"], optional = true }
+clap = { version = "4.4.6", features = ["derive", "env"], optional = true }
 shellexpand = { version = "3.1.0", optional = true }
-serde = "1.0.19"
-serde_yaml = "0.9.23"
+serde = "1.0.189"
+serde_yaml = "0.9.25"
 
 [features]
 all = []
 default = ["cli", "electrum"]
-electrum = ["electrum-client"]
+electrum = ["electrum-client", "log"]
 cli = ["clap", "shellexpand", "electrum"]
 
 [package.metadata.docs.rs]
 features = [ "all" ]
 
 [patch.crates-io]
-rgb-std = { git = "https://github.com/crisdut/rgb-wallet", branch = "release/bmc-v0.6-rc16" }
+rgb-std = { git = "https://github.com/crisdut/rgb-wallet", branch = "release/bmc-v0.7" }

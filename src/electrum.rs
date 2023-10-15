@@ -1,17 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use amplify::{RawArray, Wrapper};
+use amplify::{Wrapper, ByteArray};
 use bitcoin::hashes::Hash;
 use bitcoin::{Script, ScriptBuf};
 use bp::{LockTime, SeqNo, Tx, TxIn, TxOut, TxVer, VarIntArray, Witness};
-use electrum_client::{ElectrumApi, Error, ListUnspentRes};
+use electrum_client::{ElectrumApi, Error};
 use rgbstd::contract::WitnessOrd;
 use rgbstd::resolvers::ResolveHeight;
 use rgbstd::validation::{ResolveTx, TxResolverError};
 
 use super::*;
 use crate::descriptor::DeriveInfo;
-use crate::wallet::{MiningStatus, Utxo};
+use crate::wallet::Utxo;
 
 #[derive(Wrapper, WrapperMut, From)]
 #[wrapper(Deref)]
@@ -46,7 +46,7 @@ impl ResolveTx for BlockchainResolver {
     fn resolve_tx(&self, txid: Txid) -> Result<Tx, TxResolverError> {
         let tx = self
             .0
-            .transaction_get(&bitcoin::Txid::from_byte_array(txid.to_raw_array()))
+            .transaction_get(&bitcoin::Txid::from_byte_array(txid.to_byte_array()))
             .map_err(|err| match err {
                 Error::Message(_) | Error::Protocol(_) => TxResolverError::Unknown(txid),
                 err => TxResolverError::Other(txid, err.to_string()),
@@ -78,7 +78,7 @@ impl ResolveHeight for BlockchainResolver {
     fn resolve_height(&mut self, txid: Txid) -> Result<WitnessOrd, Self::Error> {
         let tx = match self
             .0
-            .transaction_get(&bitcoin::Txid::from_byte_array(txid.to_raw_array()))
+            .transaction_get(&bitcoin::Txid::from_byte_array(txid.to_byte_array()))
         {
             Ok(tx) => tx,
             Err(Error::Message(_) | Error::Protocol(_)) => return Ok(WitnessOrd::OffChain),
@@ -112,23 +112,5 @@ impl ResolveHeight for BlockchainResolver {
             .unwrap_or(WitnessOrd::OffChain);
 
         Ok(min_height)
-    }
-}
-
-impl Utxo {
-    fn with(derivation: DeriveInfo, res: ListUnspentRes) -> Self {
-        Utxo {
-            status: if res.height == 0 {
-                MiningStatus::Mempool
-            } else {
-                MiningStatus::Blockchain(res.height as u32)
-            },
-            outpoint: Outpoint::new(
-                Txid::from_raw_array(res.tx_hash.to_byte_array()),
-                res.tx_pos as u32,
-            ),
-            derivation,
-            amount: res.value,
-        }
     }
 }
