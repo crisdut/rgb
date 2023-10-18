@@ -52,7 +52,7 @@ pub trait Resolver {
     ) -> Result<BTreeSet<Utxo>, String>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct RgbWallet {
     pub descr: RgbDescr,
