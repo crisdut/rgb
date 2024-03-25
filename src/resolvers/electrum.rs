@@ -21,16 +21,13 @@
 
 use std::collections::HashMap;
 
-use amplify::ByteArray;
-use bitcoin::hashes::Hash;
-use bitcoin::Txid as BitcoinTxid;
 use bp::ConsensusDecode;
 use bpstd::{Tx, Txid};
-use electrum_client::{Client, ElectrumApi, Param};
+use electrum::{Client, ElectrumApi, Error, Param};
 use rgbstd::containers::Consignment;
 use rgbstd::resolvers::ResolveHeight;
 use rgbstd::validation::{ResolveWitness, WitnessResolverError};
-use rgbstd::{WitnessAnchor, WitnessId, WitnessOrd, WitnessPos, XAnchor, XPubWitness};
+use rgbstd::{Layer1, WitnessAnchor, WitnessId, WitnessOrd, WitnessPos, XAnchor, XPubWitness};
 
 pub struct Resolver {
     electrum_client: Client,
@@ -43,18 +40,21 @@ pub struct Resolver {
 pub enum AnchorResolverError {
     #[from]
     #[display(inner)]
-    Error(electrum_client::Error),
+    Error(Error),
 
     /// impossible conversion
     ImpossibleConversion,
 
     /// invalid anchor {0}
     InvalidAnchor(String),
+
+    /// unsupported layer 1 {0}
+    UnsupportedLayer1(Layer1),
 }
 
 impl Resolver {
     #[allow(clippy::result_large_err)]
-    pub fn new(url: &str) -> Result<Self, electrum_client::Error> {
+    pub fn new(url: &str) -> Result<Self, Error> {
         let electrum_client = Client::new(url)?;
         Ok(Self {
             electrum_client,
@@ -78,7 +78,7 @@ impl ResolveHeight for Resolver {
 
     fn resolve_anchor(&mut self, anchor: &XAnchor) -> Result<WitnessAnchor, Self::Error> {
         let XAnchor::Bitcoin(anchor) = anchor else {
-            panic!("Liquid is not yet supported")
+            return Err(AnchorResolverError::UnsupportedLayer1(anchor.layer1()));
         };
         let txid = anchor
             .txid()
@@ -110,18 +110,18 @@ impl ResolveHeight for Resolver {
                 if let Some(confirmations) = tx_details.get("confirmations") {
                     let confirmations = confirmations
                         .as_u64()
-                        .ok_or(electrum_client::Error::InvalidResponse(tx_details.clone()))?;
+                        .ok_or(Error::InvalidResponse(tx_details.clone()))?;
                     let last_block_height_max = get_block_height(&self.electrum_client)?;
                     let skew = confirmations - 1;
                     let mut tx_height: u32 = 0;
                     for height in (last_block_height_min - skew)..=(last_block_height_max - skew) {
-                        if let Ok(h) = self.electrum_client.transaction_get_merkle(
-                            &BitcoinTxid::from_byte_array(txid.to_byte_array()),
+                        if let Ok(get_merkle_res) = self.electrum_client.transaction_get_merkle(
+                            &txid,
                             height
                                 .try_into()
                                 .map_err(|_| AnchorResolverError::ImpossibleConversion)?,
                         ) {
-                            tx_height = h
+                            tx_height = get_merkle_res
                                 .block_height
                                 .try_into()
                                 .map_err(|_| AnchorResolverError::ImpossibleConversion)?;
@@ -132,12 +132,12 @@ impl ResolveHeight for Resolver {
                     }
                     let block_time = tx_details
                         .get("blocktime")
-                        .ok_or(electrum_client::Error::InvalidResponse(tx_details.clone()))?
+                        .ok_or(Error::InvalidResponse(tx_details.clone()))?
                         .as_i64()
-                        .ok_or(electrum_client::Error::InvalidResponse(tx_details.clone()))?;
+                        .ok_or(Error::InvalidResponse(tx_details.clone()))?;
                     WitnessOrd::OnChain(
                         WitnessPos::new(tx_height, block_time)
-                            .ok_or(electrum_client::Error::InvalidResponse(tx_details.clone()))?,
+                            .ok_or(Error::InvalidResponse(tx_details.clone()))?,
                     )
                 } else {
                     WitnessOrd::OffChain
@@ -165,17 +165,17 @@ impl ResolveWitness for Resolver {
         witness_id: WitnessId,
     ) -> Result<XPubWitness, WitnessResolverError> {
         let WitnessId::Bitcoin(txid) = witness_id else {
-            panic!("Liquid is not yet supported");
+            return Err(WitnessResolverError::Other(
+                witness_id,
+                AnchorResolverError::UnsupportedLayer1(witness_id.layer1()).to_string(),
+            ));
         };
 
         if let Some(tx) = self.terminal_txes.get(&txid) {
             return Ok(XPubWitness::Bitcoin(tx.clone()));
         }
 
-        match self
-            .electrum_client
-            .transaction_get_raw(&BitcoinTxid::from_byte_array(txid.to_byte_array()))
-        {
+        match self.electrum_client.transaction_get_raw(&txid) {
             Ok(raw_tx) => {
                 let tx = Tx::consensus_deserialize(raw_tx).map_err(|_| {
                     WitnessResolverError::Other(witness_id, s!("cannot deserialize raw TX"))
